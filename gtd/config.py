@@ -1,8 +1,11 @@
-"""Synthetic showcase settings. No production path or integration is configured here."""
+"""Local-only settings for the public GTD application."""
+import os
 from pathlib import Path
 
-VAULT = Path(".")
-DB_PATH = Path("gtd-showcase.db")
+HOME = Path(os.environ.get("GTD_HOME", "~/.local/share/gtd-engine")).expanduser()
+VAULT = HOME / "files"
+DB_PATH = Path(os.environ.get("GTD_DB", str(HOME / "gtd.db"))).expanduser()
+HISTORY_PATH = HOME / "history.jsonl"
 COMMITMENT_TYPES = ("obligation", "intention")
 WORK_TYPES = ("open", "closed")
 EXECUTION_TYPES = ("interactive", "automated")

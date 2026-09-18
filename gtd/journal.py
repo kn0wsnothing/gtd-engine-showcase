@@ -1,20 +1,23 @@
-"""Process-local journal adapter for the temporary showcase database.
-
-The private engine writes an external durable journal after selected database transactions.
-This adapter records the same calls only in process memory. Its failure switch is deliberate:
-it lets the test prove that a journal error is reported after the database transition.
-"""
+"""Durable, user-local history for the public GTD application."""
 from __future__ import annotations
 
-import os
+import json
+import sys
+from datetime import datetime, timezone
 
-EVENTS: list[tuple[str, tuple, dict]] = []
+from . import config
 
 
 def _record(kind: str, *args, **kwargs) -> None:
-    if os.environ.get("GTD_SHOWCASE_JOURNAL_FAIL") == "1":
-        raise OSError("synthetic journal failure")
-    EVENTS.append((kind, args, kwargs))
+    event = {"at": datetime.now(timezone.utc).isoformat(), "event": kind,
+             "args": list(args), "fields": kwargs}
+    try:
+        config.HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with config.HISTORY_PATH.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(event, sort_keys=True, default=str) + "\n")
+    except OSError:
+        print("warning: database change saved; history could not be appended. "
+              "Do not repeat the mutation. Check the history path and permissions.", file=sys.stderr)
 
 
 def capture(*args, **kwargs): _record("capture", *args, **kwargs)

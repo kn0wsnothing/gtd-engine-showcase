@@ -3,16 +3,15 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "gtd-engine-showcase"
-version = "0.1.0"
-description = "Synthetic SQLite showcase of GTD Engine state transitions"
+name = "gtd-engine"
+version = "1.0.0"
+description = "Local persistent Getting Things Done task application"
 requires-python = ">=3.12"
 
 [project.scripts]
-gtd-showcase = "gtd_showcase:main"
+gtd = "gtd.cli:main"
 
 [tool.setuptools]
-py-modules = ["gtd_showcase"]
 
 [tool.setuptools.packages.find]
 include = ["gtd*"]

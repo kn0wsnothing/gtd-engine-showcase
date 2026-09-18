@@ -11,7 +11,7 @@ Here is the ordinary problem it addresses. You write: “draft the launch checkl
 capture, not yet a commitment. After you clarify it, it becomes an action. “Review the launch
 checklist” depends on the draft, so it stays out of the next-action list. When the draft is
 completed, the engine updates that dependency in the same database transaction and the review
-becomes available. This showcase runs that exact scenario.
+becomes available. The commands below run that workflow with persistent local state.
 
 ## How the full system works
 
@@ -37,34 +37,52 @@ Scheduled work can prepare a review surface, but it does not make commitment dec
 operator. Those choices keep automated assistance useful while preserving a clear human decision
 about what becomes a commitment.
 
-## Run the public demonstration
+## Install and use it
 
-Requires Python 3.12 or newer and no packages beyond the standard library.
+Requires Python 3.12 or newer. Runtime uses only the standard library. Installation requires pip and setuptools; pip may download build tooling.
 
 ```sh
-python gtd_showcase.py run
-python gtd_showcase.py invalid-state
-python tests/test_demo.py
+git clone https://github.com/kn0wsnothing/gtd-engine-showcase.git
+cd gtd-engine-showcase
+python -m venv .venv
+.venv/bin/pip install .
+.venv/bin/gtd init
+.venv/bin/gtd capture "Draft the launch checklist"
+.venv/bin/gtd clarify 1 --as action --text "Draft the launch checklist"
+.venv/bin/gtd action add "Review the launch checklist" --after 1
+.venv/bin/gtd blocked
+.venv/bin/gtd done 1
+.venv/bin/gtd next
+.venv/bin/gtd history
 ```
 
-The first command prints JSON containing `"blocked_before_completion": true`, then shows
-`"Review the launch checklist"` as the next action after completion. The second prints a
-rejection for the invalid commitment type `urgent`. The tests exercise capture, clarification,
-dependency propagation, invalid state validation, and a simulated journal-write failure.
+Daily changes use the same local record. `gtd action drop ID --reason "..."` closes an action with its reason. `gtd action reopen ID` restores it and rechecks dependent actions. `gtd action someday ID` (or `park`) removes it from the active lists until `reactivate`. `gtd action defer ID --until YYYY-MM-DD` adds a date block; `undelay` removes that action's date blocks. Both changes appear in local history. Use `gtd action edit ID --text "..." --reason "..."` for a corrected action label. The edit is recorded in the audit trail. `--force` is available only with a stated reason when a recent edit changes the leading verb. `gtd project list` shows projects and their active counts. Use `gtd project actions ID` to see its child actions. `gtd project close ID --state done` or `dropped` refuses to hide open or someday children: finish, drop, or reassign them first.
 
-The demo creates a temporary SQLite file and removes it before exit. It makes no network calls.
+The database defaults to `~/.local/share/gtd-engine/gtd.db`. History is stored at
+`GTD_HOME/history.jsonl`, even when `GTD_DB` selects a different database directory. Set `GTD_HOME`
+for another data directory or `GTD_DB` for an exact database path. `init` only creates or migrates the
+database. It never resets it. Use `gtd project add "Launch is ready"` and `gtd action add ...
+--project ID` to organize actions, `gtd inbox` to inspect captures, `gtd show action ID` to inspect
+a record, and `gtd --json` for structured output.
+
+The commands above persist across separate invocations. `blocked` shows the review action before
+its prerequisite completes; after `done 1`, `next` shows it. `history` reads the append-only local
+record of captures, clarifications, direct additions, and closures. The application makes no
+network calls. SQLite is authoritative. If the separate history append fails after a change,
+the command still returns success and prints the result plus a warning on stderr. Do not repeat
+that mutation: it is saved in the database. The history entry will be missing.
 
 ## Code guide
 
 `gtd/migrations.py` defines the checked SQLite schema. `gtd/mutations.py` contains the capture,
 clarification, action, dependency, and completion transitions. `gtd/predicates.py` evaluates
-conditions, while `gtd/queries.py` computes next actions. `gtd_showcase.py` supplies the
-synthetic scenario and ensures it loads this candidate’s code.
+conditions, while `gtd/queries.py` computes next actions. `gtd/cli.py` is the public command-line
+application. `gtd/journal.py` writes the local durable history.
 
-This is a focused engineering sample, not the full operating system. It leaves out the private
-command surface, note projection, calendar input, automation queue, backups, configuration, and
-user data. `SOURCE_PROVENANCE.json` records hashes for the reviewed source transformations used
-to prepare this public copy.
+This public application covers personal task capture, clarification, projects, actions,
+dependencies, completion, and history. It deliberately leaves out the private note projection,
+calendar input, automation queue, backups, and integrations. `SOURCE_PROVENANCE.json` records
+hashes for the reviewed source transformations used to prepare this public copy.
 
 ## License and maintenance
 
